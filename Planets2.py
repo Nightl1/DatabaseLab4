@@ -5,11 +5,9 @@ client = MongoClient('mongodb://localhost:27017/')
 db = client['DatabaseLab4']
 planets_collection = db['Planets']
 
-# Aggregation pipeline to process the data
 pipeline = [
     {
         '$project': {
-            '_id': 0,
             'orderFromSun': 1,
             'name': 1,
             'mainAtmosphere': 1
@@ -44,7 +42,6 @@ pipeline = [
     },
     {
         '$project': {
-            '_id': '$orderFromSun',
             'orderFromSun': 1,
             'name': 1,
             'mainAtmosphere': 1,
@@ -53,11 +50,16 @@ pipeline = [
     }
 ]
 
-# Execute the aggregation pipeline
+# get the result from pipeline
 planets_data = list(planets_collection.aggregate(pipeline))
 
-# Create a DataFrame from the aggregation results
+# Id 0 from 19
+for idx, planet in enumerate(planets_data):
+    planet['_id'] = idx
+
+# Create a DataFrame for the result
 df = pd.DataFrame(planets_data)
 
-# Print the DataFrame
-print(df)
+# Print the result
+# markdown to clear result
+print(df.to_markdown(index=False))
