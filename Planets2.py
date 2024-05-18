@@ -1,40 +1,63 @@
 import pandas as pd
+from pymongo import MongoClient
 
-# Read the csv doc
-df = pd.read_csv('sample_guides.planets.csv')
+client = MongoClient('mongodb://localhost:27017/')
+db = client['DatabaseLab4']
+planets_collection = db['Planets']
 
-# Sort by orderFromSun and then name
-df_sorted = df.sort_values(by=['orderFromSun', 'name'])
+# Aggregation pipeline to process the data
+pipeline = [
+    {
+        '$project': {
+            '_id': 0,
+            'orderFromSun': 1,
+            'name': 1,
+            'mainAtmosphere': 1
+        }
+    },
+    {
+        '$unwind': '$mainAtmosphere'
+    },
+    {
+        '$addFields': {
+            'color_values': {
+                '$switch': {
+                    'branches': [
+                        {'case': {'$eq': ['$mainAtmosphere', 'CO2']}, 'then': '#00CED1'},
+                        {'case': {'$eq': ['$mainAtmosphere', 'N']}, 'then': '#00FFFF'},
+                        {'case': {'$eq': ['$mainAtmosphere', 'O2']}, 'then': '#228B22'},
+                        {'case': {'$eq': ['$mainAtmosphere', 'Ar']}, 'then': '#00FA9A'},
+                        {'case': {'$eq': ['$mainAtmosphere', 'H2']}, 'then': '#008080'},
+                        {'case': {'$eq': ['$mainAtmosphere', 'He']}, 'then': '#191970'},
+                        {'case': {'$eq': ['$mainAtmosphere', 'CH4']}, 'then': '#00FF00'}
+                    ],
+                    'default': None
+                }
+            }
+        }
+    },
+    {
+        '$sort': {
+            'orderFromSun': 1,
+            'name': 1
+        }
+    },
+    {
+        '$project': {
+            '_id': '$orderFromSun',
+            'orderFromSun': 1,
+            'name': 1,
+            'mainAtmosphere': 1,
+            'color_values': 1
+        }
+    }
+]
 
-# Replace _id with orderFromSun
-df_sorted['_id'] = df_sorted['orderFromSun']
+# Execute the aggregation pipeline
+planets_data = list(planets_collection.aggregate(pipeline))
 
-df_melted = df_sorted.melt(id_vars=['orderFromSun', 'name'], value_vars=['mainAtmosphere[0]', 'mainAtmosphere[1]', 'mainAtmosphere[2]'], value_name='mainAtmosphere')
+# Create a DataFrame from the aggregation results
+df = pd.DataFrame(planets_data)
 
-df_melted.drop(columns=['variable'], inplace=True)
-
-df_melted = df_melted[df_melted['mainAtmosphere'].notna()]
-
-# Match mainAtmosphere to a color
-def map_color(mainAtmosphere):
-    if mainAtmosphere == 'CO2':
-        return '#00CED1'
-    elif mainAtmosphere == 'N':
-        return '#00FFFF'
-    elif mainAtmosphere == 'O2':
-        return '#228B22'
-    elif mainAtmosphere == 'Ar':
-        return '#00FA9A'
-    elif mainAtmosphere == 'H2':
-        return '#008080'
-    elif mainAtmosphere == 'He':
-        return '#191970'
-    elif mainAtmosphere == 'CH4':
-        return '#00FF00'
-    else:
-        return None
-
-# create color_values column
-df_melted['color_values'] = df_melted['mainAtmosphere'].apply(map_color)
-result_df = df_melted[['orderFromSun', 'name', 'mainAtmosphere', 'color_values']]
-print(result_df)
+# Print the DataFrame
+print(df)
