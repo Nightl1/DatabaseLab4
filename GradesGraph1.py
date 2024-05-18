@@ -1,50 +1,76 @@
+from pymongo import MongoClient
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# Read the CSV file
-df = pd.read_csv('sample_training.grades.csv')
+# Connect to MongoDB
+client = MongoClient('mongodb://localhost:27017/')
+db = client['DatabaseLab4']  
+grades_collection = db['Grades']
 
-# dict to save results for each class_id
-class_result = {}
-
-# get class_ids
+# Class IDs
 class_ids = [149, 350]
 
+# Dictionary to save results for each class_id
+class_result = {}
+
+# Iterate over each class_id
 for class_id in class_ids:
-    class_data = df[df['class_id'] == class_id]
+    pipeline = [
+        {
+            '$match': {'class_id': class_id}
+        },
+        {
+            '$project': {
+                'class_id': 1,
+                'scores': 1
+            }
+        },
+        {
+            '$unwind': '$scores'
+        },
+        {
+            '$group': {
+                '_id': '$scores.type',
+                'avg_score': {'$avg': '$scores.score'}
+            }
+        }
+    ]
 
-    class_result[class_id] = []
+    result = list(grades_collection.aggregate(pipeline))
 
-    for index, row in class_data.iterrows():
-        for i in range(4):
-            score_type = row[f'scores[{i}].type']
-            score_value = row[f'scores[{i}].score']
-            class_result[class_id].append({'_id': score_type, 'avg_score': score_value})
-
-    class_result[class_id] = pd.DataFrame(class_result[class_id])
-
-    # Get avg score by class_id
-    class_result[class_id] = class_result[class_id].groupby('_id')['avg_score'].mean().reset_index()
+    # Convert to DataFrame
+    result_df = pd.DataFrame(result)
 
     # Add class_id field
-    class_result[class_id]['class_id'] = class_id
+    result_df['class_id'] = class_id
 
-# put colors for each bar
+    # Save the answer in class_result
+    class_result[class_id] = result_df
+
+# Define colors for each evaluation type
 color_dict = {
-    'homework': 'lightgreen',
     'quiz': 'darkblue',
+    'homework': 'lightgreen',
     'exam': 'royalblue'
 }
 
-fig, axs = plt.subplots(1, len(class_ids), figsize=(12, 6))
+# Create subplots
+fig, axs = plt.subplots(1, len(class_ids), figsize=(16, 3))
 
+# bar graphs for each class_id
 for i, class_id in enumerate(class_ids):
-    # Set colors on the bars
-    colors = [color_dict.get(evaluation_type, 'skyblue') for evaluation_type in class_result[class_id]['_id']]
-    axs[i].barh(class_result[class_id]['_id'], class_result[class_id]['avg_score'], color=colors)
+    result_df = class_result[class_id].sort_values(by='_id', key=lambda x: x.map({'quiz': 0, 'homework': 1, 'exam': 2}))
+
+    colors = [color_dict.get(evaluation_type, 'skyblue') for evaluation_type in result_df['_id']]
+
+    # reducing spaces between bars
+    axs[i].barh(result_df['_id'], result_df['avg_score'], color=colors, align='edge', height=0.5, edgecolor='black', linewidth=0.5)
     axs[i].set_title(f'Class ID {class_id}')
     axs[i].invert_yaxis()
+    
+    # Add the liens in x axises
+    axs[i].grid(axis='x', linestyle='--', color='blue')
 
 plt.tight_layout()
-plt.savefig('averageScoresClass.png')  # Save the plot as PNG
+plt.savefig('averageScoresClass.png') 
 plt.show()

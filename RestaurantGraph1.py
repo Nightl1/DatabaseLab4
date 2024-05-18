@@ -1,32 +1,65 @@
+from pymongo import MongoClient
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# Read CSV file
-df = pd.read_csv('sample_restaurants.restaurants.csv')
+# Connect to MongoDB
+client = MongoClient('mongodb://localhost:27017/')
+db = client['DatabaseLab4']  
+restaurants_collection = db['Restaurants']  
 
-# Create DF for Polish restaurants
-polish_restaurants = df[df['cuisine'] == 'Polish']
-polish_grouped = polish_restaurants.groupby('borough').size().reset_index(name='total')
+polish_pipeline = [
+    {
+        '$match': {'cuisine': 'Polish'}
+    },
+    {
+        '$group': {
+            '_id': '$borough',
+            'total': {'$sum': 1}
+        }
+    },
+    {
+        '$sort': {'total': 1}  
+    }
+]
 
-# Create DF for Italian restaurants
-italian_restaurants = df[df['cuisine'] == 'Italian']
-italian_grouped = italian_restaurants.groupby('borough').size().reset_index(name='total')
+italian_pipeline = [
+    {
+        '$match': {'cuisine': 'Italian'}
+    },
+    {
+        '$group': {
+            '_id': '$borough',
+            'total': {'$sum': 1}
+        }
+    },
+    {
+        '$sort': {'total': 1}  
+    }
+]
 
-# Sort Italian restaurants by total number
-italian_grouped = italian_grouped.sort_values(by='total', ascending=False)
+polish_results = list(restaurants_collection.aggregate(polish_pipeline))
+italian_results = list(restaurants_collection.aggregate(italian_pipeline))
 
-fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(10, 6))
+# put the answers in DataFrames
+polish_df = pd.DataFrame(polish_results)
+italian_df = pd.DataFrame(italian_results)
+
+polish_df = polish_df[::-1]
+italian_df = italian_df[::-1]
+
+# Plot bar graphs
+fig, axes = plt.subplots(1, 2, figsize=(12, 6))
 
 # Polish cuisine
-axes[0].bar(polish_grouped['borough'], polish_grouped['total'], color='blue')
-axes[0].set_title('Polish')
-axes[0].tick_params(axis='x', rotation=45)
+axes[0].bar(polish_df['_id'], polish_df['total'], color='lightblue') 
+axes[0].set_title('Polishhg')
 
 # Italian cuisine
-axes[1].bar(italian_grouped['borough'], italian_grouped['total'], color='blue')
-axes[1].set_title('Italian')
+axes[1].bar(italian_df['_id'], italian_df['total'], color='lightblue') 
+axes[1].set_title('Italian ')
+
+axes[0].tick_params(axis='x', rotation=45)
 axes[1].tick_params(axis='x', rotation=45)
 
 plt.tight_layout()
-plt.savefig('boroughPerTypeofCuisine.png')  # Save the plot as PNG
 plt.show()
