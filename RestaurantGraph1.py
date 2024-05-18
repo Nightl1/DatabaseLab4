@@ -62,4 +62,5 @@ axes[0].tick_params(axis='x', rotation=45)
 axes[1].tick_params(axis='x', rotation=45)
 
 plt.tight_layout()
+plt.savefig('boroughPerTypeofCuisine.png')
 plt.show()

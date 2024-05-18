@@ -11,9 +11,11 @@ def updateImage(*args):
     defaultPhoto = ImageTk.PhotoImage(image)
     canvas.create_image(0, 0, anchor=NW, image=defaultPhoto)
     canvas.image = defaultPhoto 
+    # fit the image
+    canvas.config(width=image.width, height=image.height)
 
 # image
-graph_names = ['surfaceTemperatureofPlanetsinSolorSystem',
+graph_names = ['surfaceTemperatureofPlanetsinSolorSystem_linear',
                'mainCompositionofPlantsAtmosphereinSolorSystem',
                'boroughPerTypeofCuisine',
                'averageScoresClass']

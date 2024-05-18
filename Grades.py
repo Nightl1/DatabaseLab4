@@ -51,4 +51,3 @@ for class_id in class_ids:
 for class_id, result_df in class_result.items():
     print(f"Average score per evaluation type for class_id {class_id}:")
     print(result_df.to_string(index=False))
-    print()
